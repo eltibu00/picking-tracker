@@ -303,16 +303,24 @@
             }
         }
         
-        async function loadProductivityChart() {
-            try {
-                const timestamp = new Date().getTime();
-                const response = await fetch(SCRIPT_URL + '?action=getProductivityChart&t=' + timestamp);
-                const chartData = await response.json();
-                displayProductivityChart(chartData);
-            } catch (error) {
-                console.error('Error loading chart:', error);
-            }
+              async function loadProductivityChart() {
+    try {
+        const timestamp = new Date().getTime();
+        const response = await fetch(SCRIPT_URL + '?action=getProductivityChart&t=' + timestamp);
+        const chartData = await response.json();
+        
+        // Check if it's actually an array before using it
+        if (Array.isArray(chartData)) {
+            displayProductivityChart(chartData);
+        } else {
+            console.error('Chart data error:', chartData);
+            displayProductivityChart([]); // Show "no data" message
         }
+    } catch (error) {
+        console.error('Error loading chart:', error);
+        displayProductivityChart([]); // Show "no data" message on error
+    }
+}
         
         function displayProductivityChart(data) {
             const container = document.getElementById('performance-chart');
@@ -490,4 +498,5 @@
     </script>
 </body>
 </html>
+
 
