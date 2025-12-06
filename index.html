@@ -43,6 +43,18 @@
         .no-data { text-align: center; padding: 40px; color: #999; font-style: italic; }
         .error-message { background-color: #f8d7da; color: #721c24; padding: 12px; border-radius: 4px; margin-bottom: 15px; display: none; }
         .success-message { background-color: #d4edda; color: #155724; padding: 12px; border-radius: 4px; margin-bottom: 15px; display: none; }
+        
+        /* Chart Styles */
+        .chart-container { background: #f9f9f9; padding: 25px; border-radius: 8px; margin-top: 30px; }
+        .chart-title { font-size: 20px; font-weight: bold; color: #0066cc; margin-bottom: 20px; text-align: center; }
+        .chart-bar-container { margin-bottom: 15px; }
+        .chart-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold; color: #333; }
+        .chart-bar-wrapper { background: #e0e0e0; border-radius: 5px; height: 35px; position: relative; overflow: hidden; }
+        .chart-bar { background: linear-gradient(90deg, #0066cc, #0099ff); height: 100%; border-radius: 5px; display: flex; align-items: center; justify-content: flex-end; padding-right: 10px; color: white; font-weight: bold; transition: width 0.5s ease; }
+        .rank-badge { display: inline-block; background: #ffc107; color: #000; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; margin-right: 8px; }
+        .rank-1 .chart-bar { background: linear-gradient(90deg, #FFD700, #FFA500); }
+        .rank-2 .chart-bar { background: linear-gradient(90deg, #C0C0C0, #A8A8A8); }
+        .rank-3 .chart-bar { background: linear-gradient(90deg, #CD7F32, #B87333); }
     </style>
 </head>
 <body>
@@ -141,18 +153,25 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>Daily Productivity by Employee</h2>
                 <div>
-                    <button class="btn-refresh" onclick="loadCompletedBatches()" style="margin-right: 10px;">🔄 Refresh</button>
+                    <button class="btn-refresh" onclick="loadCompletedBatches()">🔄 Refresh</button>
                     <button class="btn-download" onclick="downloadProductivity()">📊 Download to Excel</button>
                 </div>
             </div>
-            <div id="productivity-list"></div>
+            
+            <!-- NEW PERFORMANCE CHART -->
+            <div class="chart-container" id="performance-chart-container">
+                <div class="chart-title">📊 Lines Per Hour Ranking (All Time)</div>
+                <div id="performance-chart"></div>
+            </div>
+            
+            <div id="productivity-list" style="margin-top: 30px;"></div>
         </div>
         
         <div id="completed" class="tab-content">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>Completed Batches Archive</h2>
                 <div>
-                    <button class="btn-refresh" onclick="loadCompletedBatches()" style="margin-right: 10px;">🔄 Refresh</button>
+                    <button class="btn-refresh" onclick="loadCompletedBatches()">🔄 Refresh</button>
                     <button class="btn-download" onclick="downloadCompleted()">📊 Download to Excel</button>
                 </div>
             </div>
@@ -211,8 +230,7 @@
                     body: JSON.stringify({
                         action: 'startBatch',
                         batchId, account, employeeId,
-                        qty: batchQty, skuCount,
-                        startTimeDisplay: new Date().toLocaleString()
+                        qty: batchQty, skuCount
                     })
                 });
                 const result = await response.json();
@@ -235,15 +253,13 @@
                 return;
             }
             
-            const endTime = new Date();
             try {
                 const response = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     body: JSON.stringify({
-                        action: 'completeBatch', batchId,
-                        endTimeDisplay: endTime.toLocaleString(),
-                        duration: 0, exception,
-                        completionDate: endTime.toLocaleDateString()
+                        action: 'completeBatch', 
+                        batchId,
+                        exception
                     })
                 });
                 const result = await response.json();
@@ -262,7 +278,9 @@
         
         async function loadInProgressBatches() {
             try {
-                const response = await fetch(SCRIPT_URL + '?action=getInProgress');
+                // Cache busting to force fresh data
+                const timestamp = new Date().getTime();
+                const response = await fetch(SCRIPT_URL + '?action=getInProgress&t=' + timestamp);
                 inProgressBatches = await response.json();
                 displayQuickProgressList();
                 displayInProgressBatches();
@@ -273,13 +291,57 @@
         
         async function loadCompletedBatches() {
             try {
-                const response = await fetch(SCRIPT_URL + '?action=getCompleted');
+                // Cache busting to force fresh data
+                const timestamp = new Date().getTime();
+                const response = await fetch(SCRIPT_URL + '?action=getCompleted&t=' + timestamp);
                 completedBatches = await response.json();
                 displayCompletedBatches();
                 displayProductivity();
+                loadProductivityChart(); // Load performance chart
             } catch (error) {
                 console.error('Error loading batches:', error);
             }
+        }
+        
+        async function loadProductivityChart() {
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(SCRIPT_URL + '?action=getProductivityChart&t=' + timestamp);
+                const chartData = await response.json();
+                displayProductivityChart(chartData);
+            } catch (error) {
+                console.error('Error loading chart:', error);
+            }
+        }
+        
+        function displayProductivityChart(data) {
+            const container = document.getElementById('performance-chart');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="no-data">No productivity data available</div>';
+                return;
+            }
+            
+            // Find max for scaling
+            const maxLines = Math.max(...data.map(d => d.linesPerHour));
+            
+            let html = '';
+            data.forEach((item, index) => {
+                const rank = index + 1;
+                const percentage = (item.linesPerHour / maxLines) * 100;
+                const rankClass = rank <= 3 ? 'rank-' + rank : '';
+                
+                html += '<div class="chart-bar-container ' + rankClass + '">';
+                html += '<div class="chart-label">';
+                html += '<span><span class="rank-badge">#' + rank + '</span>' + item.employee + '</span>';
+                html += '<span>' + item.linesPerHour + ' lines/hour (' + item.batches + ' batches)</span>';
+                html += '</div>';
+                html += '<div class="chart-bar-wrapper">';
+                html += '<div class="chart-bar" style="width: ' + percentage + '%">' + item.linesPerHour + '</div>';
+                html += '</div>';
+                html += '</div>';
+            });
+            
+            container.innerHTML = html;
         }
         
         function clearForm() {
@@ -358,7 +420,7 @@
                 dateGroups[data.date].push(data);
             });
             const sortedDates = Object.keys(dateGroups).sort().reverse();
-            let html = '';
+            let html = '<h3 style="color: #0066cc; margin-top: 30px; margin-bottom: 15px;">Daily Breakdown by Date</h3>';
             sortedDates.forEach(date => {
                 html += '<div style="margin-bottom: 30px;"><h3 style="color: #0066cc; margin-bottom: 15px;">📅 ' + date + '</h3>';
                 dateGroups[date].forEach(data => {
