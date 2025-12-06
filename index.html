@@ -158,7 +158,7 @@
                 </div>
             </div>
             
-            <!-- NEW PERFORMANCE CHART -->
+            <!-- PERFORMANCE CHART -->
             <div class="chart-container" id="performance-chart-container">
                 <div class="chart-title">📊 Lines Per Hour Ranking (All Time)</div>
                 <div id="performance-chart"></div>
@@ -210,6 +210,38 @@
             successMsg.textContent = message;
             successMsg.style.display = 'block';
             setTimeout(() => successMsg.style.display = 'none', 3000);
+        }
+        
+        // Helper function to format dates properly on the client side
+        function formatDisplayDate(dateValue) {
+            if (!dateValue) return '-';
+            
+            // If already formatted (contains AM/PM), return as is
+            if (typeof dateValue === 'string' && (dateValue.includes('AM') || dateValue.includes('PM'))) {
+                return dateValue;
+            }
+            
+            // Try to parse the date
+            let d;
+            if (typeof dateValue === 'string') {
+                d = new Date(dateValue);
+            } else {
+                d = new Date(dateValue);
+            }
+            
+            // Check if valid date
+            if (isNaN(d.getTime())) return String(dateValue);
+            
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const year = d.getFullYear();
+            let hours = d.getHours();
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            
+            return `${month}/${day}/${year} ${hours}:${minutes} ${ampm}`;
         }
         
         async function startBatch() {
@@ -278,7 +310,6 @@
         
         async function loadInProgressBatches() {
             try {
-                // Cache busting to force fresh data
                 const timestamp = new Date().getTime();
                 const response = await fetch(SCRIPT_URL + '?action=getInProgress&t=' + timestamp);
                 inProgressBatches = await response.json();
@@ -291,41 +322,40 @@
         
         async function loadCompletedBatches() {
             try {
-                // Cache busting to force fresh data
                 const timestamp = new Date().getTime();
                 const response = await fetch(SCRIPT_URL + '?action=getCompleted&t=' + timestamp);
                 completedBatches = await response.json();
                 displayCompletedBatches();
                 displayProductivity();
-                loadProductivityChart(); // Load performance chart
+                loadProductivityChart();
             } catch (error) {
                 console.error('Error loading batches:', error);
             }
         }
         
-              async function loadProductivityChart() {
-    try {
-        const timestamp = new Date().getTime();
-        const response = await fetch(SCRIPT_URL + '?action=getProductivityChart&t=' + timestamp);
-        const chartData = await response.json();
-        
-        // Check if it's actually an array before using it
-        if (Array.isArray(chartData)) {
-            displayProductivityChart(chartData);
-        } else {
-            console.error('Chart data error:', chartData);
-            displayProductivityChart([]); // Show "no data" message
+        async function loadProductivityChart() {
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(SCRIPT_URL + '?action=getProductivityChart&t=' + timestamp);
+                const chartData = await response.json();
+                
+                // Check if it's actually an array before using it
+                if (Array.isArray(chartData)) {
+                    displayProductivityChart(chartData);
+                } else {
+                    console.error('Chart data error:', chartData);
+                    displayProductivityChart([]);
+                }
+            } catch (error) {
+                console.error('Error loading chart:', error);
+                displayProductivityChart([]);
+            }
         }
-    } catch (error) {
-        console.error('Error loading chart:', error);
-        displayProductivityChart([]); // Show "no data" message on error
-    }
-}
         
         function displayProductivityChart(data) {
             const container = document.getElementById('performance-chart');
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="no-data">No productivity data available</div>';
+                container.innerHTML = '<div class="no-data">No productivity data available yet</div>';
                 return;
             }
             
@@ -335,7 +365,7 @@
             let html = '';
             data.forEach((item, index) => {
                 const rank = index + 1;
-                const percentage = (item.linesPerHour / maxLines) * 100;
+                const percentage = maxLines > 0 ? (item.linesPerHour / maxLines) * 100 : 0;
                 const rankClass = rank <= 3 ? 'rank-' + rank : '';
                 
                 html += '<div class="chart-bar-container ' + rankClass + '">';
@@ -384,7 +414,7 @@
             }
             let html = '<table><thead><tr><th>Batch ID</th><th>Account</th><th>Employee</th><th>Start Time</th><th>Qty</th><th>Lines</th><th>Status</th></tr></thead><tbody>';
             inProgressBatches.forEach(batch => {
-                html += '<tr><td><strong>' + batch.batchId + '</strong></td><td>' + batch.account + '</td><td>' + batch.employeeId + '</td><td>' + batch.startTimeDisplay + '</td><td>' + batch.qty + '</td><td>' + batch.skuCount + '</td><td><span class="status-badge status-progress">In Progress</span></td></tr>';
+                html += '<tr><td><strong>' + batch.batchId + '</strong></td><td>' + batch.account + '</td><td>' + batch.employeeId + '</td><td>' + formatDisplayDate(batch.startTimeDisplay) + '</td><td>' + batch.qty + '</td><td>' + batch.skuCount + '</td><td><span class="status-badge status-progress">In Progress</span></td></tr>';
             });
             html += '</tbody></table>';
             container.innerHTML = html;
@@ -398,7 +428,7 @@
             }
             let html = '<table><thead><tr><th>Batch ID</th><th>Account</th><th>Employee</th><th>Start Time</th><th>End Time</th><th>Duration</th><th>Qty</th><th>Lines</th><th>Exception</th><th>Status</th></tr></thead><tbody>';
             completedBatches.forEach(batch => {
-                html += '<tr><td><strong>' + batch.batchId + '</strong></td><td>' + batch.account + '</td><td>' + batch.employeeId + '</td><td>' + batch.startTimeDisplay + '</td><td>' + batch.endTimeDisplay + '</td><td>' + batch.durationDisplay + '</td><td>' + batch.qty + '</td><td>' + batch.skuCount + '</td><td>' + (batch.exception || '-') + '</td><td><span class="status-badge status-completed">Completed</span></td></tr>';
+                html += '<tr><td><strong>' + batch.batchId + '</strong></td><td>' + batch.account + '</td><td>' + batch.employeeId + '</td><td>' + formatDisplayDate(batch.startTimeDisplay) + '</td><td>' + formatDisplayDate(batch.endTimeDisplay) + '</td><td>' + batch.durationDisplay + '</td><td>' + batch.qty + '</td><td>' + batch.skuCount + '</td><td>' + (batch.exception || '-') + '</td><td><span class="status-badge status-completed">Completed</span></td></tr>';
             });
             html += '</tbody></table>';
             container.innerHTML = html;
@@ -417,9 +447,9 @@
                     productivityData[key] = { date: batch.completionDate, employee: batch.employeeId, totalBatches: 0, totalQty: 0, totalLines: 0, totalDuration: 0, exceptions: 0 };
                 }
                 productivityData[key].totalBatches++;
-                productivityData[key].totalQty += parseInt(batch.qty);
-                productivityData[key].totalLines += parseInt(batch.skuCount);
-                productivityData[key].totalDuration += parseInt(batch.duration);
+                productivityData[key].totalQty += parseInt(batch.qty) || 0;
+                productivityData[key].totalLines += parseInt(batch.skuCount) || 0;
+                productivityData[key].totalDuration += parseInt(batch.duration) || 0;
                 if (batch.exception) productivityData[key].exceptions++;
             });
             const dateGroups = {};
@@ -432,7 +462,7 @@
             sortedDates.forEach(date => {
                 html += '<div style="margin-bottom: 30px;"><h3 style="color: #0066cc; margin-bottom: 15px;">📅 ' + date + '</h3>';
                 dateGroups[date].forEach(data => {
-                    const avgDuration = Math.round(data.totalDuration / data.totalBatches);
+                    const avgDuration = data.totalBatches > 0 ? Math.round(data.totalDuration / data.totalBatches) : 0;
                     const qtyPerHour = data.totalDuration > 0 ? Math.round((data.totalQty / data.totalDuration) * 60) : 0;
                     const linesPerHour = data.totalDuration > 0 ? Math.round((data.totalLines / data.totalDuration) * 60) : 0;
                     html += '<div style="background: #f9f9f9; padding: 20px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #0066cc;">';
@@ -455,7 +485,7 @@
             if (completedBatches.length === 0) { alert('No completed batches to download'); return; }
             let csv = 'Batch ID,Account,Employee,Start Time,End Time,Duration (min),Quantity,Lines,Exception,Status\n';
             completedBatches.forEach(batch => {
-                csv += '"' + batch.batchId + '","' + batch.account + '","' + batch.employeeId + '","' + batch.startTimeDisplay + '","' + batch.endTimeDisplay + '",' + batch.duration + ',' + batch.qty + ',' + batch.skuCount + ',"' + (batch.exception || '') + '","' + batch.status + '"\n';
+                csv += '"' + batch.batchId + '","' + batch.account + '","' + batch.employeeId + '","' + formatDisplayDate(batch.startTimeDisplay) + '","' + formatDisplayDate(batch.endTimeDisplay) + '",' + batch.duration + ',' + batch.qty + ',' + batch.skuCount + ',"' + (batch.exception || '') + '","' + batch.status + '"\n';
             });
             downloadCSV(csv, 'NJ3_Completed_Batches.csv');
         }
@@ -469,14 +499,14 @@
                     productivityData[key] = { date: batch.completionDate, employee: batch.employeeId, totalBatches: 0, totalQty: 0, totalLines: 0, totalDuration: 0, exceptions: 0 };
                 }
                 productivityData[key].totalBatches++;
-                productivityData[key].totalQty += parseInt(batch.qty);
-                productivityData[key].totalLines += parseInt(batch.skuCount);
-                productivityData[key].totalDuration += parseInt(batch.duration);
+                productivityData[key].totalQty += parseInt(batch.qty) || 0;
+                productivityData[key].totalLines += parseInt(batch.skuCount) || 0;
+                productivityData[key].totalDuration += parseInt(batch.duration) || 0;
                 if (batch.exception) productivityData[key].exceptions++;
             });
             let csv = 'Date,Employee,Batches,Total Qty,Total Lines,Total Min,Avg Min/Batch,Qty/Hour,Lines/Hour,Exceptions\n';
             Object.values(productivityData).forEach(data => {
-                const avgDuration = Math.round(data.totalDuration / data.totalBatches);
+                const avgDuration = data.totalBatches > 0 ? Math.round(data.totalDuration / data.totalBatches) : 0;
                 const qtyPerHour = data.totalDuration > 0 ? Math.round((data.totalQty / data.totalDuration) * 60) : 0;
                 const linesPerHour = data.totalDuration > 0 ? Math.round((data.totalLines / data.totalDuration) * 60) : 0;
                 csv += '"' + data.date + '","' + data.employee + '",' + data.totalBatches + ',' + data.totalQty + ',' + data.totalLines + ',' + data.totalDuration + ',' + avgDuration + ',' + qtyPerHour + ',' + linesPerHour + ',' + data.exceptions + '\n';
@@ -498,5 +528,3 @@
     </script>
 </body>
 </html>
-
-
