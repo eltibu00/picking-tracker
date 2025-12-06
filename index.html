@@ -163,8 +163,6 @@
                 <div class="chart-title">📊 Lines Per Hour Ranking (Today)</div>
                 <div id="performance-chart"></div>
             </div>
-            
-            <div id="productivity-list" style="margin-top: 30px;"></div>
         </div>
         
         <div id="completed" class="tab-content">
@@ -326,7 +324,6 @@
                 const response = await fetch(SCRIPT_URL + '?action=getCompleted&t=' + timestamp);
                 completedBatches = await response.json();
                 displayCompletedBatches();
-                displayProductivity();
                 loadProductivityChart();
             } catch (error) {
                 console.error('Error loading batches:', error);
@@ -431,53 +428,6 @@
                 html += '<tr><td><strong>' + batch.batchId + '</strong></td><td>' + batch.account + '</td><td>' + batch.employeeId + '</td><td>' + formatDisplayDate(batch.startTimeDisplay) + '</td><td>' + formatDisplayDate(batch.endTimeDisplay) + '</td><td>' + batch.durationDisplay + '</td><td>' + batch.qty + '</td><td>' + batch.skuCount + '</td><td>' + (batch.exception || '-') + '</td><td><span class="status-badge status-completed">Completed</span></td></tr>';
             });
             html += '</tbody></table>';
-            container.innerHTML = html;
-        }
-        
-        function displayProductivity() {
-            const container = document.getElementById('productivity-list');
-            if (completedBatches.length === 0) {
-                container.innerHTML = '<div class="no-data">No completed batches to analyze</div>';
-                return;
-            }
-            const productivityData = {};
-            completedBatches.forEach(batch => {
-                const key = batch.completionDate + '_' + batch.employeeId;
-                if (!productivityData[key]) {
-                    productivityData[key] = { date: batch.completionDate, employee: batch.employeeId, totalBatches: 0, totalQty: 0, totalLines: 0, totalDuration: 0, exceptions: 0 };
-                }
-                productivityData[key].totalBatches++;
-                productivityData[key].totalQty += parseInt(batch.qty) || 0;
-                productivityData[key].totalLines += parseInt(batch.skuCount) || 0;
-                productivityData[key].totalDuration += parseInt(batch.duration) || 0;
-                if (batch.exception) productivityData[key].exceptions++;
-            });
-            const dateGroups = {};
-            Object.values(productivityData).forEach(data => {
-                if (!dateGroups[data.date]) dateGroups[data.date] = [];
-                dateGroups[data.date].push(data);
-            });
-            const sortedDates = Object.keys(dateGroups).sort().reverse();
-            let html = '<h3 style="color: #0066cc; margin-top: 30px; margin-bottom: 15px;">Daily Breakdown by Date</h3>';
-            sortedDates.forEach(date => {
-                html += '<div style="margin-bottom: 30px;"><h3 style="color: #0066cc; margin-bottom: 15px;">📅 ' + date + '</h3>';
-                dateGroups[date].forEach(data => {
-                    const avgDuration = data.totalBatches > 0 ? Math.round(data.totalDuration / data.totalBatches) : 0;
-                    const qtyPerHour = data.totalDuration > 0 ? Math.round((data.totalQty / data.totalDuration) * 60) : 0;
-                    const linesPerHour = data.totalDuration > 0 ? Math.round((data.totalLines / data.totalDuration) * 60) : 0;
-                    html += '<div style="background: #f9f9f9; padding: 20px; border-radius: 5px; margin-bottom: 15px; border-left: 4px solid #0066cc;">';
-                    html += '<div style="background: #0066cc; color: white; padding: 12px; border-radius: 5px; margin-bottom: 10px; font-size: 18px; font-weight: bold;">' + data.employee + '</div>';
-                    html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">';
-                    html += '<div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd; text-align: center;"><div style="font-size: 24px; font-weight: bold; color: #0066cc;">' + data.totalBatches + '</div><div style="font-size: 12px; color: #666; margin-top: 5px;">Batches</div></div>';
-                    html += '<div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd; text-align: center;"><div style="font-size: 24px; font-weight: bold; color: #0066cc;">' + data.totalQty + '</div><div style="font-size: 12px; color: #666; margin-top: 5px;">Total Qty</div></div>';
-                    html += '<div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd; text-align: center;"><div style="font-size: 24px; font-weight: bold; color: #0066cc;">' + data.totalLines + '</div><div style="font-size: 12px; color: #666; margin-top: 5px;">Total Lines</div></div>';
-                    html += '<div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd; text-align: center;"><div style="font-size: 24px; font-weight: bold; color: #0066cc;">' + avgDuration + '</div><div style="font-size: 12px; color: #666; margin-top: 5px;">Avg Min/Batch</div></div>';
-                    html += '<div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd; text-align: center;"><div style="font-size: 24px; font-weight: bold; color: #0066cc;">' + qtyPerHour + '</div><div style="font-size: 12px; color: #666; margin-top: 5px;">Qty/Hour</div></div>';
-                    html += '<div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd; text-align: center;"><div style="font-size: 24px; font-weight: bold; color: #0066cc;">' + linesPerHour + '</div><div style="font-size: 12px; color: #666; margin-top: 5px;">Lines/Hour</div></div>';
-                    html += '</div></div>';
-                });
-                html += '</div>';
-            });
             container.innerHTML = html;
         }
         
