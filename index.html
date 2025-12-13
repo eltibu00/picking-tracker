@@ -416,7 +416,14 @@
             html += '</tbody></table>';
             container.innerHTML = html;
         }
-        
+        // Auto-uppercase Batch IDs for consistency
+document.getElementById('completeBatchId').addEventListener('input', function(e) {
+    this.value = this.value.toUpperCase();
+});
+
+document.getElementById('batchId').addEventListener('input', function(e) {
+    this.value = this.value.toUpperCase();
+});
         function displayCompletedBatches() {
             const container = document.getElementById('completed-list');
             if (completedBatches.length === 0) {
@@ -478,3 +485,4 @@
     </script>
 </body>
 </html>
+
