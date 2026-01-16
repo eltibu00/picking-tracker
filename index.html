@@ -85,16 +85,8 @@
                             <option value="">Select Account</option>
                             <option value="BAM">BAM</option>
                             <option value="BR">BR</option>
-                            <option value="Granado">Granado</option>
+                            <option value="It's Work">It's Work</option>
                             <option value="KA">KA</option>
-                            <option value="Havea">Havea</option>
-                            <option value="Maely's">Maely's</option>
-                            <option value="Natura">Natura</option>
-                            <option value="Maison">Maison</option>
-                            <option value="Promix">Promix</option>
-                            <option value="VBB">VBB</option>                            
-                            <option value="Yves Roche">Yves Roche</option>
-                            <option value="It's Work">It's Work</option>  
                             <option value="Maely's Ecom">Maely's Ecom</option>
                         </select>
                     </div>
@@ -419,14 +411,16 @@
             html += '</tbody></table>';
             container.innerHTML = html;
         }
+        
         // Auto-uppercase Batch IDs for consistency
-document.getElementById('completeBatchId').addEventListener('input', function(e) {
-    this.value = this.value.toUpperCase();
-});
+        document.getElementById('completeBatchId').addEventListener('input', function(e) {
+            this.value = this.value.toUpperCase();
+        });
 
-document.getElementById('batchId').addEventListener('input', function(e) {
-    this.value = this.value.toUpperCase();
-});
+        document.getElementById('batchId').addEventListener('input', function(e) {
+            this.value = this.value.toUpperCase();
+        });
+        
         function displayCompletedBatches() {
             const container = document.getElementById('completed-list');
             if (completedBatches.length === 0) {
@@ -488,6 +482,3 @@ document.getElementById('batchId').addEventListener('input', function(e) {
     </script>
 </body>
 </html>
-
-
-
